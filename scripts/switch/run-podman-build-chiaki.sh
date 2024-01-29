@@ -2,7 +2,7 @@
 
 cd "`dirname $(readlink -f ${0})`/../.."
 
-podman run --rm \
+docker run --rm \
 	-v "`pwd`:/build/chiaki" \
 	-w "/build/chiaki" \
 	-it \
