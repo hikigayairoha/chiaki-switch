@@ -3,6 +3,7 @@
 
 ---
 一键下载：[chiaki.nro](https://github.com/hikigayairoha/chiaki-switch/releases/download/v2.2.0-chiaki-switch/chiaki.nro)
+
 源码下载：
 ```bash
 git clone -b feature_haptic_rumble https://github.com/hikigayairoha/chiaki-switch.git
