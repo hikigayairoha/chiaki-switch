@@ -2,7 +2,11 @@
 **在 [kkwong/chiaki](https://git.sr.ht/~kkwong/chiaki) 基础上二次开发，感谢原作者与社区贡献！**
 
 ---
-一键下载：[https://github.com/hikigayairoha/chiaki-switch/releases/tag/v2.2.0-chiaki-switch](https://github.com/hikigayairoha/chiaki-switch/releases/download/v2.2.0-chiaki-switch/chiaki.nro)
+一键下载：[chiaki.nro](https://github.com/hikigayairoha/chiaki-switch/releases/download/v2.2.0-chiaki-switch/chiaki.nro)
+源码下载：
+```bash
+git clone -b feature_haptic_rumble https://github.com/hikigayairoha/chiaki-switch.git
+
 ---
 ## 🚀 功能亮点
 - **减号键 → 触控板按下**  
