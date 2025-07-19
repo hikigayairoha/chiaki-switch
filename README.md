@@ -6,7 +6,7 @@
 源码下载：
 ```bash
 git clone -b feature_haptic_rumble https://github.com/hikigayairoha/chiaki-switch.git
-
+```
 ---
 ## 🚀 功能亮点
 - **减号键 → 触控板按下**  
