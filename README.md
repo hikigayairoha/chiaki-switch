@@ -2,7 +2,8 @@
 **在 [kkwong/chiaki](https://git.sr.ht/~kkwong/chiaki) 基础上二次开发，感谢原作者与社区贡献！**
 
 ---
-
+一键下载：[https://github.com/hikigayairoha/chiaki-switch/releases/tag/v2.2.0-chiaki-switch](https://github.com/hikigayairoha/chiaki-switch/releases/download/v2.2.0-chiaki-switch/chiaki.nro)
+---
 ## 🚀 功能亮点
 - **减号键 → 触控板按下**  
   一键搞定 PS5 触控板功能，告别繁琐组合键。  
