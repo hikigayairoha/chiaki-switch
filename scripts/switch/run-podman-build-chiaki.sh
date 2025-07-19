@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+export PATH="/opt/podman/bin:$PATH"
 
 cd "`dirname $(readlink -f ${0})`/../.."
 
-docker run --rm \
+podman run --rm \
 	-v "`pwd`:/build/chiaki" \
 	-w "/build/chiaki" \
 	-it \

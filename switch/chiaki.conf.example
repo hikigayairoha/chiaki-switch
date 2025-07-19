@@ -1,0 +1,23 @@
+# Chiaki Switch 配置文件示例
+# 启用第三方手柄震动和陀螺仪映射
+
+# 全局设置
+video_resolution = "720p"
+video_fps = 60
+haptic = 2  # 2=强震动, 1=弱震动, 0=关闭
+psn_online_id = "your_psn_id"
+
+# 主机配置示例
+[PS5-Host]
+host_addr = "192.168.1.100"
+target = "1"
+video_resolution = "1080p"
+video_fps = 60
+haptic = 2  # 启用震动支持
+
+[PS4-Host]
+host_addr = "192.168.1.101"
+target = "0"
+video_resolution = "720p"
+video_fps = 60
+haptic = 2  # 启用震动支持

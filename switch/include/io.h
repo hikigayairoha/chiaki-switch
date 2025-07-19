@@ -82,8 +82,8 @@ class IO
 		SDL_Haptic *sdl_haptic_ptr[2];
 #ifdef __SWITCH__
 		PadState pad;
-		HidSixAxisSensorHandle sixaxis_handles[4];
-		HidVibrationDeviceHandle vibration_handles[2][2];
+		HidSixAxisSensorHandle sixaxis_handles[3];
+		HidVibrationDeviceHandle vibration_handles[3][2];
 #endif
 		GLuint vao;
 		GLuint vbo;

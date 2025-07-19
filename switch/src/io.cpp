@@ -427,7 +427,12 @@ bool IO::ReadGameTouchScreen(ChiakiControllerState *chiaki_state, std::map<uint3
 	bool ret = false;
 	hidGetTouchScreenStates(&sw_state, 1);
 	// scale switch screen to the PS trackpad
-	chiaki_state->buttons &= ~CHIAKI_CONTROLLER_BUTTON_TOUCHPAD; // touchscreen release
+	// 只有当有触摸输入时才清除触控板按钮状态，避免干扰物理按键
+	if (sw_state.count > 0) {
+		// 仅清除触摸屏相关的触控板状态，保留物理按键状态
+		// 由于边缘触发会重新设置，这里可以安全清除
+		chiaki_state->buttons &= ~CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+	}
 
 	// un-touch all old touches
 	for(auto it = finger_id_touch_id->begin(); it != finger_id_touch_id->end();)
@@ -492,11 +497,22 @@ void IO::SetRumble(uint8_t left, uint8_t right)
 			.freq_high = 200.0f,
 		}};
 
-	int target_device = padIsHandheld(&pad) ? 0 : 1;
+	// Enhanced device selection for third-party controllers
+	uint64_t style_set = padGetStyleSet(&pad);
+	int target_device = 0;
+	
+	if (style_set & HidNpadStyleTag_NpadHandheld)
+		target_device = 0;
+	else if (style_set & HidNpadStyleTag_NpadFullKey)
+		target_device = 1;
+	else if (style_set & HidNpadStyleTag_NpadJoyDual)
+		target_device = 2;
+	else
+		target_device = 1; // Default to Pro Controller/third-party
+	
 	if(left > 160) left = 160;
 	if(left > 0)
 	{
-		// SDL_HapticRumblePlay(this->sdl_haptic_ptr[0], left / 100, 5000);
 		float l = (float)left / 255.0;
 		vibration_values[0].amp_low = l;
 		vibration_values[0].freq_low *= l;
@@ -507,7 +523,6 @@ void IO::SetRumble(uint8_t left, uint8_t right)
 	if(right > 160) right = 160;
 	if(right > 0)
 	{
-		// SDL_HapticRumblePlay(this->sdl_haptic_ptr[1], right / 100, 5000);
 		float r = (float)right / 255.0;
 		vibration_values[1].amp_low = r;
 		vibration_values[1].freq_low *= r;
@@ -567,7 +582,19 @@ void IO::SetHapticRumble(uint8_t left, uint8_t right)
 			.freq_high = 200.0f,
 		}};
 
-	int target_device = padIsHandheld(&pad) ? 0 : 1;
+	// Enhanced device selection for haptic feedback
+	uint64_t style_set = padGetStyleSet(&pad);
+	int target_device = 0;
+	
+	if (style_set & HidNpadStyleTag_NpadHandheld)
+		target_device = 0;
+	else if (style_set & HidNpadStyleTag_NpadFullKey)
+		target_device = 1;
+	else if (style_set & HidNpadStyleTag_NpadJoyDual)
+		target_device = 2;
+	else
+		target_device = 1; // Default to Pro Controller/third-party
+
 	for (int i = 0; i < 2; i++) {
 		float index = (float)val / (float)HapticBase;
 		vibration_values[i].amp_low = index;
@@ -577,11 +604,10 @@ void IO::SetHapticRumble(uint8_t left, uint8_t right)
 			vibration_values[i].freq_high *= index;
 		}
 	}
-	// CHIAKI_LOGW(this->log, "haptic rumble param: %f %f %f %f",
-	// 	vibration_values[0].amp_low, vibration_values[0].amp_high,
-	// 	vibration_values[0].freq_low, vibration_values[0].freq_high);
 	
-	rc = hidSendVibrationValues(this->vibration_handles[target_device], vibration_values, 2);
+	if (target_device >= 0 && target_device <= 2) {
+		rc = hidSendVibrationValues(this->vibration_handles[target_device], vibration_values, 2);
+	}
 #endif
 }
 
@@ -615,6 +641,16 @@ bool IO::ReadGameSixAxis(ChiakiControllerState *state)
 			hidGetSixAxisSensorStates(this->sixaxis_handles[2], &sixaxis, 1);
 		else if(attrib & HidNpadAttribute_IsRightConnected)
 			hidGetSixAxisSensorStates(this->sixaxis_handles[3], &sixaxis, 1);
+	}
+	else if(style_set & HidNpadStyleTag_NpadJoyLeft)
+	{
+		// Left Joy-Con
+		hidGetSixAxisSensorStates(this->sixaxis_handles[3], &sixaxis, 1);
+	}
+	else if(style_set & HidNpadStyleTag_NpadJoyRight)
+	{
+		// Right Joy-Con
+		hidGetSixAxisSensorStates(this->sixaxis_handles[4], &sixaxis, 1);
 	}
 
 	state->gyro_x = sixaxis.angular_velocity.x * 2.0f * M_PI;
@@ -764,11 +800,19 @@ bool IO::ReadGameKeys(SDL_Event *event, ChiakiControllerState *state)
 					break; // KEY_RSTICK
 				case 10:
 					state->buttons |= CHIAKI_CONTROLLER_BUTTON_OPTIONS;
+					// 检查减号键是否也被按下
+					if(SDL_JoystickGetButton(SDL_JoystickFromInstanceID(event->jbutton.which), 11)) {
+                        state->buttons |= CHIAKI_CONTROLLER_BUTTON_PS;
+                    }
 					break; // KEY_PLUS
 				// FIXME
 				// case 11: state->buttons |= CHIAKI_CONTROLLER_BUTTON_SHARE; break; // KEY_MINUS
 				case 11:
-					state->buttons |= CHIAKI_CONTROLLER_BUTTON_PS;
+					state->buttons |= CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+					// 检查加号键是否也被按下
+					if(SDL_JoystickGetButton(SDL_JoystickFromInstanceID(event->jbutton.which), 10)) {
+                        state->buttons |= CHIAKI_CONTROLLER_BUTTON_PS;
+                    }
 					break; // KEY_MINUS
 				default:
 					ret = false;
@@ -823,10 +867,18 @@ bool IO::ReadGameKeys(SDL_Event *event, ChiakiControllerState *state)
 					break; // KEY_RSTICK
 				case 10:
 					state->buttons ^= CHIAKI_CONTROLLER_BUTTON_OPTIONS;
+					// 检查减号键是否也被按下
+					if(SDL_JoystickGetButton(SDL_JoystickFromInstanceID(event->jbutton.which), 11)) {
+                        state->buttons ^= CHIAKI_CONTROLLER_BUTTON_PS;
+                    }
 					break; // KEY_PLUS
 						   //case 11: state->buttons ^= CHIAKI_CONTROLLER_BUTTON_SHARE; break; // KEY_MINUS
 				case 11:
-					state->buttons ^= CHIAKI_CONTROLLER_BUTTON_PS;
+					state->buttons ^= CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+					// 检查加号键是否也被按下
+					if(SDL_JoystickGetButton(SDL_JoystickFromInstanceID(event->jbutton.which), 10)) {
+                        state->buttons ^= CHIAKI_CONTROLLER_BUTTON_PS;
+                    }
 					break; // KEY_MINUS
 				default:
 					ret = false;
@@ -1187,6 +1239,7 @@ bool IO::InitController()
 #ifdef __SWITCH__
 Result rc = 0;
 	// Configure our supported input layout: a single player with standard controller styles
+	// Enable support for all controller types including third-party controllers
 	padConfigureInput(1, HidNpadStyleSet_NpadStandard);
 
 	// Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
@@ -1194,21 +1247,30 @@ Result rc = 0;
 	// touchpad
 	hidInitializeTouchScreen();
 	// It's necessary to initialize these separately as they all have different handle values
+	// Initialize for handheld mode
 	hidGetSixAxisSensorHandles(&this->sixaxis_handles[0], 1, HidNpadIdType_Handheld, HidNpadStyleTag_NpadHandheld);
+	// Initialize for Pro Controller and third-party controllers
 	hidGetSixAxisSensorHandles(&this->sixaxis_handles[1], 1, HidNpadIdType_No1, HidNpadStyleTag_NpadFullKey);
+	// Initialize for Joy-Con dual mode
 	hidGetSixAxisSensorHandles(&this->sixaxis_handles[2], 2, HidNpadIdType_No1, HidNpadStyleTag_NpadJoyDual);
 	hidStartSixAxisSensor(this->sixaxis_handles[0]);
 	hidStartSixAxisSensor(this->sixaxis_handles[1]);
 	hidStartSixAxisSensor(this->sixaxis_handles[2]);
-	hidStartSixAxisSensor(this->sixaxis_handles[3]);
 
+    // Initialize vibration for handheld mode
     rc = hidInitializeVibrationDevices(this->vibration_handles[0], 2, HidNpadIdType_Handheld, HidNpadStyleTag_NpadHandheld);
 	if(R_FAILED(rc))
 		CHIAKI_LOGE(this->log, "hidInitializeVibrationDevices() HidNpadIdType_Handheld returned: 0x%x", rc);
 
-    rc = hidInitializeVibrationDevices(this->vibration_handles[1], 2, HidNpadIdType_No1, HidNpadStyleTag_NpadJoyDual);
+    // Initialize vibration for Pro Controller and third-party controllers
+    rc = hidInitializeVibrationDevices(this->vibration_handles[1], 2, HidNpadIdType_No1, HidNpadStyleTag_NpadFullKey);
 	if(R_FAILED(rc))
-		CHIAKI_LOGE(this->log, "hidInitializeVibrationDevices() HidNpadIdType_No1 returned: 0x%x", rc);
+		CHIAKI_LOGE(this->log, "hidInitializeVibrationDevices() HidNpadIdType_No1 NpadFullKey returned: 0x%x", rc);
+
+    // Initialize vibration for Joy-Con dual mode
+    rc = hidInitializeVibrationDevices(this->vibration_handles[2], 2, HidNpadIdType_No1, HidNpadStyleTag_NpadJoyDual);
+	if(R_FAILED(rc))
+		CHIAKI_LOGE(this->log, "hidInitializeVibrationDevices() HidNpadIdType_No1 NpadJoyDual returned: 0x%x", rc);
 
 #endif
 	return true;
@@ -1225,7 +1287,6 @@ bool IO::FreeController()
 	hidStopSixAxisSensor(this->sixaxis_handles[0]);
 	hidStopSixAxisSensor(this->sixaxis_handles[1]);
 	hidStopSixAxisSensor(this->sixaxis_handles[2]);
-	hidStopSixAxisSensor(this->sixaxis_handles[3]);
 #endif
 	return true;
 }
